@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Mapa da Loja</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #search {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+    #suggestions {
+      list-style-type: none;
+      padding: 0;
+    }
+    #suggestions li {
+      padding: 8px;
+      background: #f0f0f0;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    #suggestions li:hover {
+      background: #e0e0e0;
+    }
+    #map {
+      margin-top: 20px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Encontre o Setor</h1>
+  <input type="text" id="search" placeholder="Digite o produto">
+  <ul id="suggestions"></ul>
+  <div id="map" class="hidden">
+    <img id="mapImage" src="" alt="Rota para o setor">
+  </div>
+
+  <script>
+    const sectors = {
+      "01 - Materiais": ["Material de construcao", "Cimento,areia,arg,cascalho", "Elementos p/ construcao", "Evac./trat. agua residencial", "Cobertura (telhas/domos)", "Evacuação água de chuva e esgoto", "Impermeabilização", "Isolamento", "Construção a seco", "Madeiras telhado/construção"],
+      "02 - Carpintaria e madeira": ["Carpintaria ext. - esquadrias", "Portas e divisoes internas", "Escadas e balaustres", "Madeira serrada", "Chapas para marcenaria", "Toldos", "Molduras para parede", "Revestimentos parede/teto"],
+      "03 - Eletricidade": ["Equipamento de distribuicao", "Tubos e acessórios", "Equipamentos  perifericos", "Aquec. climatiz. e ventilacao", "Energia renovavel", "Tomadas e interruptores", "Fios e cabos"],
+      "04 - Ferramentas": ["Ferramentas de mao", "Ferramenta especializada", "Furar e parafusar", "Máquinas p/ corte e desbaste", "Acess. p/ ferram. eletrica", "Maquinas estacionarias", "Equip de protecao individual", "Equipamentos de oficina"],
+      "05 - Pisos laminados e vinilicos": ["Carpetes e pisos emborrachados", "Pisos laminados", "Pisos vinilicos em manta", "Pisos vinilicos", "Colocacao e acabamento", "Acessorios"],
+      "06 - Ceramica": ["Revestimentos internos", "Revestimentos externos", "Pisos internos", "Porcelanato interno", "Pedras naturais e calcadas", "Acessórios de parede e piso", "Pisos externos", "Colocação e acabamento", "Porcelanato externo", "Pastilhas, mosaicos e seixos"],
+      "07 - Sanitario": ["Cubas e lavatorios", "Banheiras", "Box e acessorios", "Acessorios wc area seca", "Espelhos e armarios", "Moveis banheiro", "Vasos sanitario", "Acessorios wc area molhada", "Assentos sanitarios", "Segurança e acessibilidade", "Uso público"],
+      "08 - Encanamento": ["Alimentacao agua", "Torneira banheiro", "Duchas frias", "Chuveiros eletricos", "Evacuacao", "Acessorios wc", "Aquecimento gas", "Aquecimento eletrico"],
+      "09 - Jardim": ["Plantas", "Ferramentas manuais", "Vasos e acessorios", "Produtos para jardim", "Irrigacao", "Motorizado", "Limpadores alta pressao", "Cercados", "Pisos exterior", "Moveis de jardim", "Churrasqueiras-acessorios", "Piscinas", "Brinquedos para jardim"],
+      "10 - Ferragens": ["Seguranca", "Ferragens da residencia", "Fechaduras", "Ferragens de moveis", "Ferragens de fixaçao", "Equipamento ferragens"],
+      "11 - Pintura": ["Pintura de madeira e metal", "Pintura exterior", "Produtos para a madeira", "Pinceis, rolos e protecao", "Adesivos e colas", "Pintura interior", "centro de cor", "Preparacao de superficies", "Manutencao", "Isolamento e impermeabilizacao"],
+      "12 - Decoracao": ["Papel de parede", "Natal", "Outros revestimentos de parede", "Tecidos", "Cama", "Varao, trilho e acessorio", "Persianas de interior", "Enquadramento", "Decoracao de teto e parede", "Tapetes", "Capachos", "Mesa textil", "Objetos decorativos impulso"],
+      "13 - Iluminacao": ["Arandelas e spots dec", "Lampadas", "Pendentes, plafons dec e lustres", "Ventiladores", "Luminarias e paineis grd formatos", "Abajur, base abajur e cupulas", "Luminária de chão", "Plafons, paineis e spots tec", "Iluminacao externa", "Iluminação linear", "Luminarias de moveis"],
+      "14 - Organizacao": ["Mão francesa, trilhos e suportes", "Prateleiras", "Estantes", "Closet e moveis de quarto", "Móveis complementares", "Móveis home office", "Caixas organizadoras", "Organizacao de armario, closet e home of"],
+      "15 - Cozinhas": ["Móveis de cozinha e lavanderia", "Torneiras de cozinha", "Bancadas e tampos", "Cubas e pias", "Organizadores de cozinha e lavanderia", "Eletrodomésticos", "Tanque", "Lixeiras", "Complementar lavanderia", "Tratamento de agua"]
+    };
+
+    const searchInput = document.getElementById('search');
+    const suggestions = document.getElementById('suggestions');
+    const map = document.getElementById('map');
+    const mapImage = document.getElementById('mapImage');
+
+    searchInput.addEventListener('input', function() {
+      const query = searchInput.value.toLowerCase();
+      suggestions.innerHTML = '';
+
+      for (const [sector, products] of Object.entries(sectors)) {
+        products.forEach(product => {
+          if (product.toLowerCase().includes(query)) {
+            const suggestionItem = document.createElement('li');
+            suggestionItem.textContent = product;
+            suggestionItem.addEventListener('click', () => {
+              showMap(sector);
+            });
+            suggestions.appendChild(suggestionItem);
+          }
+        });
+      }
+    });
+
+    function showMap(sector) {
+      const sectorImage = sector.replace(/\s+/g, '_') + '.jpg';
+      mapImage.src = sectorImage;
+      map.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
